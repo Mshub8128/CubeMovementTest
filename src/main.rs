@@ -56,7 +56,6 @@ async fn main() {
     let mut right_flag: bool = false;
     let mut left_flag: bool = false;
     let mut rotate_flag: bool = false;
-    let mut turn_angle: f32 = 0.0;
     loop {
         clear_background(LIGHTGRAY);
         draw_grid(20, 1., BLACK, GRAY);
@@ -102,22 +101,21 @@ async fn main() {
         if up_flag {
             x_roll_angle += PI / 90.0;
             if x_roll_angle >= PI / 2.0 {
-                x_roll_angle = 0.0; //PI / 2.0;
+                x_roll_angle = 0.0;
                 up_flag = false;
                 xdir_offset += 1.0;
             }
-            if (x_roll_angle == 0.0) {
+            if x_roll_angle == 0.0 {
                 rotate_flag = false;
             }
         }
         if down_flag {
             x_roll_angle -= PI / 90.0;
             if x_roll_angle <= 0.0 {
-                x_roll_angle = PI / 2.0; //PI / 2.0;
+                x_roll_angle = PI / 2.0;
                 down_flag = false;
-                // xdir_offset -= 1.0;
             }
-            if (x_roll_angle == PI / 2.0) {
+            if x_roll_angle == PI / 2.0 {
                 rotate_flag = false;
             }
         }
@@ -126,28 +124,27 @@ async fn main() {
             if z_roll_angle <= 0.0 {
                 z_roll_angle = PI / 2.0;
                 left_flag = false;
-                // zdir_offset += 1.0;
             }
-            if (z_roll_angle == PI / 2.0) {
+            if z_roll_angle == PI / 2.0 {
                 rotate_flag = false;
             }
         }
         if right_flag {
             z_roll_angle += PI / 90.0;
             if z_roll_angle >= PI / 2.0 {
-                z_roll_angle = 0.0; //PI / 2.0;
+                z_roll_angle = 0.0;
                 right_flag = false;
                 zdir_offset -= 1.0;
             }
-            if (z_roll_angle == 0.0) {
+            if z_roll_angle == 0.0 {
                 rotate_flag = false;
             }
         }
 
         let mut model = Mat4::from_translation(vec3(zdir_offset, 0.0, xdir_offset));
-        if (up_flag || down_flag) {
+        if up_flag || down_flag {
             model = model * Mat4::from_rotation_x(x_roll_angle);
-        } else if (right_flag || left_flag) {
+        } else if right_flag || left_flag {
             model = model * Mat4::from_rotation_z(z_roll_angle);
         }
 
