@@ -48,7 +48,7 @@ async fn main() {
 
     let mut x_roll_angle: f32 = 0.0;
     let mut z_roll_angle: f32 = 0.0;
-    let mut horiz: f32 = 0.0;
+    let mut horiz: f32 = PI / 32.0;
     let mut xdir_offset: f32 = 0.0;
     let mut zdir_offset: f32 = 0.0;
     let mut up_flag: bool = false;
@@ -56,6 +56,7 @@ async fn main() {
     let mut right_flag: bool = false;
     let mut left_flag: bool = false;
     let mut rotate_flag: bool = false;
+    let mut square_trail: Vec<Vec3> = vec![];
     loop {
         clear_background(LIGHTGRAY);
         draw_grid(20, 1., BLACK, GRAY);
@@ -74,23 +75,23 @@ async fn main() {
             horiz += PI / 1080.0;
         }
         if !rotate_flag {
-            if is_key_pressed(KeyCode::Up) {
+            if is_key_down(KeyCode::Up) {
                 up_flag = true;
                 rotate_flag = true;
                 x_roll_angle = 0.0;
             }
-            if is_key_pressed(KeyCode::Down) {
+            if is_key_down(KeyCode::Down) {
                 down_flag = true;
                 rotate_flag = true;
                 x_roll_angle = PI / 2.0;
                 xdir_offset -= 1.0;
             }
-            if is_key_pressed(KeyCode::Right) {
+            if is_key_down(KeyCode::Right) {
                 right_flag = true;
                 rotate_flag = true;
                 z_roll_angle = 0.0;
             }
-            if is_key_pressed(KeyCode::Left) {
+            if is_key_down(KeyCode::Left) {
                 left_flag = true;
                 rotate_flag = true;
                 z_roll_angle = PI / 2.0;
@@ -141,13 +142,20 @@ async fn main() {
             }
         }
 
+        // vector of x/y pairs
+
+        if !rotate_flag {
+            square_trail.push(vec3(zdir_offset + 0.5, 0.0, xdir_offset - 0.5));
+        }
+        for k in square_trail.clone() {
+            draw_plane(k, vec2(0.5, 0.5), None, RED);
+        }
         let mut model = Mat4::from_translation(vec3(zdir_offset, 0.0, xdir_offset));
         if up_flag || down_flag {
             model = model * Mat4::from_rotation_x(x_roll_angle);
         } else if right_flag || left_flag {
             model = model * Mat4::from_rotation_z(z_roll_angle);
         }
-
         for i in (0..indices.len()).step_by(3) {
             let i0 = indices[i] as usize;
             let i1 = indices[i + 1] as usize;
@@ -176,7 +184,7 @@ async fn main() {
                 );
 
             draw_line_3d(v0.truncate(), v1.truncate(), RED);
-            draw_line_3d(v1.truncate(), v2.truncate(), BLUE);
+            draw_line_3d(v1.truncate(), v2.truncate(), RED);
         }
 
         next_frame().await
