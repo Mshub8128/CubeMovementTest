@@ -1,4 +1,4 @@
-use std::f32::consts::PI;
+use std::{f32::consts::PI, vec};
 
 use macroquad::prelude::*;
 
@@ -51,12 +51,21 @@ async fn main() {
     let mut horiz: f32 = PI / 32.0;
     let mut xdir_offset: f32 = 0.0;
     let mut zdir_offset: f32 = 0.0;
+    let mut xdir_offset_prev: f32 = 0.0;
+    let mut zdir_offset_prev: f32 = 0.0;
     let mut up_flag: bool = false;
     let mut down_flag: bool = false;
     let mut right_flag: bool = false;
     let mut left_flag: bool = false;
     let mut rotate_flag: bool = false;
+    let mut stationary: bool = false;
     let mut square_trail: Vec<Vec3> = vec![];
+    let mut visited: Vec<(i32, i32, i32, bool)> = vec![];
+    for i in -10..10 {
+        for j in -10..10 {
+            visited.push((i, j, 0, false));
+        }
+    }
     loop {
         clear_background(LIGHTGRAY);
         draw_grid(20, 1., BLACK, GRAY);
@@ -69,7 +78,7 @@ async fn main() {
         });
 
         if is_key_down(KeyCode::LeftShift) {
-            horiz -= PI / 1080.0;
+            horiz -= PI / 108.0;
         }
         if is_key_down(KeyCode::RightShift) {
             horiz += PI / 1080.0;
@@ -79,27 +88,36 @@ async fn main() {
                 up_flag = true;
                 rotate_flag = true;
                 x_roll_angle = 0.0;
+                xdir_offset_prev = xdir_offset;
             }
             if is_key_down(KeyCode::Down) {
                 down_flag = true;
                 rotate_flag = true;
                 x_roll_angle = PI / 2.0;
                 xdir_offset -= 1.0;
+                stationary = false;
+
+                xdir_offset_prev = xdir_offset;
             }
             if is_key_down(KeyCode::Right) {
                 right_flag = true;
                 rotate_flag = true;
                 z_roll_angle = 0.0;
+                zdir_offset_prev = zdir_offset;
             }
             if is_key_down(KeyCode::Left) {
                 left_flag = true;
                 rotate_flag = true;
                 z_roll_angle = PI / 2.0;
                 zdir_offset += 1.0;
+                stationary = false;
+                zdir_offset_prev = zdir_offset;
             }
         }
 
         if up_flag {
+            stationary = false;
+
             x_roll_angle += PI / 90.0;
             if x_roll_angle >= PI / 2.0 {
                 x_roll_angle = 0.0;
@@ -107,6 +125,7 @@ async fn main() {
                 xdir_offset += 1.0;
             }
             if x_roll_angle == 0.0 {
+                stationary = true;
                 rotate_flag = false;
             }
         }
@@ -117,6 +136,8 @@ async fn main() {
                 down_flag = false;
             }
             if x_roll_angle == PI / 2.0 {
+                stationary = true;
+
                 rotate_flag = false;
             }
         }
@@ -127,10 +148,14 @@ async fn main() {
                 left_flag = false;
             }
             if z_roll_angle == PI / 2.0 {
+                stationary = true;
+
                 rotate_flag = false;
             }
         }
         if right_flag {
+            stationary = false;
+
             z_roll_angle += PI / 90.0;
             if z_roll_angle >= PI / 2.0 {
                 z_roll_angle = 0.0;
@@ -138,18 +163,69 @@ async fn main() {
                 zdir_offset -= 1.0;
             }
             if z_roll_angle == 0.0 {
+                stationary = true;
+
                 rotate_flag = false;
             }
         }
 
         // vector of x/y pairs
 
-        if !rotate_flag {
-            square_trail.push(vec3(zdir_offset + 0.5, 0.0, xdir_offset - 0.5));
+        for i in 1..(visited.len()) {
+            if (visited[i].0 == zdir_offset as i32
+                && visited[i].1 == xdir_offset as i32
+                && stationary == true)
+            {
+                visited[i].2 = 1;
+            }
+            if (visited[i].0 == zdir_offset as i32 && visited[i].1 == xdir_offset as i32) {
+                visited[i].3 = true;
+            } else {
+                visited[i].3 = false;
+            }
+
+            if visited[i].2 == 1 {
+                draw_plane(
+                    vec3(visited[i].0 as f32 + 0.5, 0.0, visited[i].1 as f32 - 0.5),
+                    vec2(0.5, 0.5),
+                    None,
+                    VIOLET,
+                );
+            }
         }
-        for k in square_trail.clone() {
-            draw_plane(k, vec2(0.5, 0.5), None, RED);
-        }
+        println!(
+            "({},{}) ({},{}),{}",
+            zdir_offset, xdir_offset, zdir_offset_prev, xdir_offset_prev, stationary
+        );
+        // if !rotate_flag {
+        //     square_trail.push(vec3(zdir_offset + 0.5, 0.0, xdir_offset - 0.5));
+        // }
+
+        // for i in 1..(square_trail.len()) {
+        //     if (zdir_offset + 0.5) == square_trail[i].x && (xdir_offset - 0.5 == square_trail[i].z)
+        //     {
+        //         // if square_trail[i].y == 1.0 {
+        //         //     square_trail[i].y = 0.0;
+        //         // } else
+        //         if square_trail[i].y == 0.0 {
+        //             // draw_plane(
+        //             //     vec3(square_trail[i].x, 0.0, square_trail[i].z),
+        //             //     vec2(0.5, 0.5),
+        //             //     None,
+        //             //     VIOLET,
+        //             // );
+        //             square_trail[i].y = 1.0;
+        //         }
+        //     }
+        //     if square_trail[i].y != 0.0 {
+        //         draw_plane(
+        //             vec3(square_trail[i].x, 0.0, square_trail[i].z),
+        //             vec2(0.5, 0.5),
+        //             None,
+        //             VIOLET,
+        //         );
+        //     }
+        // }
         let mut model = Mat4::from_translation(vec3(zdir_offset, 0.0, xdir_offset));
         if up_flag || down_flag {
             model = model * Mat4::from_rotation_x(x_roll_angle);
