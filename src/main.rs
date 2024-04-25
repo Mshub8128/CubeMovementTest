@@ -1,6 +1,6 @@
 use std::{f32::consts::PI, vec};
 
-use macroquad::prelude::*;
+use macroquad::{color::rgb_to_hsl, prelude::*};
 
 #[derive(Debug, Clone, Copy)]
 struct Vertex {
@@ -59,11 +59,10 @@ async fn main() {
     let mut left_flag: bool = false;
     let mut rotate_flag: bool = false;
     let mut stationary: bool = false;
-    let mut square_trail: Vec<Vec3> = vec![];
-    let mut visited: Vec<(i32, i32, i32, bool)> = vec![];
+    let mut visited: Vec<(i32, i32, i32)> = vec![];
     for i in -10..10 {
         for j in -10..10 {
-            visited.push((i, j, 0, false));
+            visited.push((i, j, 0));
         }
     }
     loop {
@@ -84,34 +83,41 @@ async fn main() {
             horiz += PI / 1080.0;
         }
         if !rotate_flag {
+            if is_key_pressed(KeyCode::Up)
+                || is_key_pressed(KeyCode::Down)
+                || is_key_pressed(KeyCode::Right)
+                || is_key_pressed(KeyCode::Left)
+            {
+                xdir_offset_prev = xdir_offset;
+                zdir_offset_prev = zdir_offset;
+            }
+
             if is_key_down(KeyCode::Up) {
                 up_flag = true;
                 rotate_flag = true;
                 x_roll_angle = 0.0;
-                xdir_offset_prev = xdir_offset;
             }
+
             if is_key_down(KeyCode::Down) {
                 down_flag = true;
                 rotate_flag = true;
                 x_roll_angle = PI / 2.0;
                 xdir_offset -= 1.0;
                 stationary = false;
-
-                xdir_offset_prev = xdir_offset;
             }
+
             if is_key_down(KeyCode::Right) {
                 right_flag = true;
                 rotate_flag = true;
                 z_roll_angle = 0.0;
-                zdir_offset_prev = zdir_offset;
             }
+
             if is_key_down(KeyCode::Left) {
                 left_flag = true;
                 rotate_flag = true;
                 z_roll_angle = PI / 2.0;
                 zdir_offset += 1.0;
                 stationary = false;
-                zdir_offset_prev = zdir_offset;
             }
         }
 
@@ -137,7 +143,6 @@ async fn main() {
             }
             if x_roll_angle == PI / 2.0 {
                 stationary = true;
-
                 rotate_flag = false;
             }
         }
@@ -149,7 +154,6 @@ async fn main() {
             }
             if z_roll_angle == PI / 2.0 {
                 stationary = true;
-
                 rotate_flag = false;
             }
         }
@@ -164,7 +168,6 @@ async fn main() {
             }
             if z_roll_angle == 0.0 {
                 stationary = true;
-
                 rotate_flag = false;
             }
         }
@@ -176,12 +179,30 @@ async fn main() {
                 && visited[i].1 == xdir_offset as i32
                 && stationary == true)
             {
-                visited[i].2 = 1;
-            }
-            if (visited[i].0 == zdir_offset as i32 && visited[i].1 == xdir_offset as i32) {
-                visited[i].3 = true;
-            } else {
-                visited[i].3 = false;
+                if visited[i].2 == 0 {
+                    visited[i].2 = 1;
+                    stationary = false;
+                } else if visited[i].2 == 1 {
+                    visited[i].2 = 2;
+                    stationary = false;
+                } else if visited[i].2 == 2 {
+                    visited[i].2 = 3;
+                    stationary = false;
+                } else if visited[i].2 == 3 {
+                    visited[i].2 = 0;
+                    stationary = false;
+                }
+                // else if visited[i].2 == 4 {
+                //     visited[i].2 = 5;
+                //     stationary = false;
+                // } else if visited[i].2 == 5 {
+                //     visited[i].2 = 0;
+                //     stationary = false;
+                // }
+                println!(
+                    "x,z({},{})---- x,z prev({},{}),{}",
+                    zdir_offset, xdir_offset, zdir_offset_prev, xdir_offset_prev, visited[i].2
+                );
             }
 
             if visited[i].2 == 1 {
@@ -189,14 +210,44 @@ async fn main() {
                     vec3(visited[i].0 as f32 + 0.5, 0.0, visited[i].1 as f32 - 0.5),
                     vec2(0.5, 0.5),
                     None,
-                    VIOLET,
+                    Color::from_rgba(0, 250, 0, 250),
+                );
+            } else if visited[i].2 == 2 {
+                draw_plane(
+                    vec3(visited[i].0 as f32 + 0.5, 0.0, visited[i].1 as f32 - 0.5),
+                    vec2(0.5, 0.5),
+                    None,
+                    Color::from_rgba(250, 250, 0, 250),
+                );
+            } else if visited[i].2 == 3 {
+                draw_plane(
+                    vec3(visited[i].0 as f32 + 0.5, 0.0, visited[i].1 as f32 - 0.5),
+                    vec2(0.5, 0.5),
+                    None,
+                    Color::from_rgba(250, 0, 0, 250),
                 );
             }
+
+            // if (visited[i].0 == zdir_offset_prev as i32
+            //     && visited[i].1 == xdir_offset_prev as i32
+            //     && visited[i].2 == 1
+            //     && stationary == true)
+            // {
+            //     if visited[i].2 == 1 {
+            //         draw_plane(
+            //             vec3(visited[i].0 as f32 + 0.5, 0.0, visited[i].1 as f32 - 0.5),
+            //             vec2(0.5, 0.5),
+            //             None,
+            //             BLUE,
+            //         );
+            //     }
+            // }
         }
-        println!(
-            "({},{}) ({},{}),{}",
-            zdir_offset, xdir_offset, zdir_offset_prev, xdir_offset_prev, stationary
-        );
+        // println!(
+        //     "x,z({},{})---- x,z prev({},{}),{}",
+        //     zdir_offset, xdir_offset, zdir_offset_prev, xdir_offset_prev, stationary
+        // );
+
         // if !rotate_flag {
         //     square_trail.push(vec3(zdir_offset + 0.5, 0.0, xdir_offset - 0.5));
         // }
