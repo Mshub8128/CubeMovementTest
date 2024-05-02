@@ -1,5 +1,6 @@
 use std::f32::consts::PI;
 
+use macroquad::color;
 use macroquad::prelude::*;
 
 #[derive(Debug, Clone, Copy)]
@@ -16,8 +17,29 @@ impl Vertex {
     }
 }
 
-fn cube_vertices() -> Vec<Vertex> {
-    vec![
+fn populate_grid(grid_size: i32, colour_list_size: i32) -> Vec<(i32, i32, i32)> {
+    let mut visited: Vec<(i32, i32, i32)> = vec![];
+    rand::srand(macroquad::miniquad::date::now() as _);
+    for i in -(grid_size / 2)..(grid_size / 2) {
+        for j in -(grid_size / 2) + 1..(grid_size / 2) + 1 {
+            visited.push((i, j, rand::gen_range(0, colour_list_size + 1)));
+        }
+    }
+    return visited;
+}
+
+#[macroquad::main("Rolling Cube")]
+async fn main() {
+    let indices = vec![
+        0, 1, 2, 2, 3, 0, // Front face
+        4, 5, 6, 6, 7, 4, // Back face
+        0, 4, 7, 7, 3, 0, // Left face
+        1, 5, 6, 6, 2, 1, // Right face
+        3, 2, 6, 6, 7, 3, // Top face
+        0, 1, 5, 5, 4, 0, // Bottom face
+    ];
+
+    let vertices = vec![
         // Front face
         Vertex::new(0.0, 0.0, 0.0),
         Vertex::new(1.0, 0.0, 0.0),
@@ -28,38 +50,10 @@ fn cube_vertices() -> Vec<Vertex> {
         Vertex::new(1.0, 0.0, -1.0),
         Vertex::new(1.0, 1.0, -1.0),
         Vertex::new(0.0, 1.0, -1.0),
-    ]
-}
-//comment here
-fn cube_indices() -> Vec<u16> {
-    vec![
-        0, 1, 2, 2, 3, 0, // Front face
-        4, 5, 6, 6, 7, 4, // Back face
-        0, 4, 7, 7, 3, 0, // Left face
-        1, 5, 6, 6, 2, 1, // Right face
-        3, 2, 6, 6, 7, 3, // Top face
-        0, 1, 5, 5, 4, 0, // Bottom face
-    ]
-}
-
-fn populate_grid(GRID_SIZE: i32, colour_list_size: i32) -> Vec<(i32, i32, i32)> {
-    let mut visited: Vec<(i32, i32, i32)> = vec![];
-    rand::srand(macroquad::miniquad::date::now() as _);
-    for i in -(GRID_SIZE / 2)..(GRID_SIZE / 2) {
-        for j in -(GRID_SIZE / 2) + 1..(GRID_SIZE / 2) + 1 {
-            visited.push((i, j, rand::gen_range(0, colour_list_size + 1)));
-        }
-    }
-    return visited;
-}
-
-#[macroquad::main("Rolling Cube")]
-async fn main() {
-    let vertices = cube_vertices();
-    let indices = cube_indices();
+    ];
     const GRID_SIZE: i32 = 8; //square grid side length
     let mut count = 0; //movement counter
-    let mut roll_speed: f32 = 25.0; //roll speed
+    let roll_speed: f32 = 45.0; //roll speed
     let mut x_roll_angle: f32 = 0.0; //the way movement is simulated in x direction (3d space)
     let mut z_roll_angle: f32 = 0.0; //the way movement is simulated in z direction (3d space)
     let mut xdir_offset: f32 = 0.0; //treated as y-coord value in relation to flat grid (2d space)
@@ -72,33 +66,41 @@ async fn main() {
     let mut left_flag: bool = false; //left arrow key pressed
     let mut rotate_flag: bool = false; //cube in process of rotating
     let mut stationary: bool = false; //cube is stationary. (similar, but not the same to rotate_flag: evaluated and used at different stage of rotation)
-                                      //let mut visited: Vec<(i32, i32, i32)> = vec![]; //a vector of coords visited including incrementing counter
-    let colour_list: Vec<Color> = vec![RED];
-    let colour_list2: Vec<Color> = vec![RED, ORANGE, YELLOW, GREEN, BLUE, PURPLE, VIOLET, PINK];
-    //initial population of "tiles"
-    // rand::srand(macroquad::miniquad::date::now() as _);
-    // for i in -(GRID_SIZE / 2)..(GRID_SIZE / 2) {
-    //     for j in -(GRID_SIZE / 2) + 1..(GRID_SIZE / 2) + 1 {
-    //         visited.push((i, j, rand::gen_range(0, colour_list.len() as i32 + 1)));
-    //     }
-    // }
+    let mut high_score: i32 = 0;
+    let colour_list: Vec<color::Color> = vec![macroquad::color::Color::from_vec(vec4(
+        MAROON.r,
+        MAROON.g,
+        MAROON.b,
+        MAROON.a / 3.0,
+    ))];
+    let colour_list2: Vec<color::Color> = vec![GREEN, YELLOW, ORANGE, RED, BLANK];
+
     let mut visited: Vec<(i32, i32, i32)> = populate_grid(GRID_SIZE, colour_list.len() as i32);
-    let mut win_flag: bool = false;
+    let mut end_flag: bool = false;
 
     //main program loop begins
     loop {
-        clear_background(LIGHTGRAY);
+        clear_background(DARKGRAY);
 
         if is_key_down(KeyCode::Space) {
-            win_flag = false;
+            end_flag = false;
             visited.clear();
             visited = populate_grid(GRID_SIZE, colour_list.len() as i32);
+            xdir_offset = 0.0;
+            zdir_offset = 0.0;
+            xdir_offset_smooth = 0.0;
+            zdir_offset_smooth = 0.0;
+            count = 0;
         }
 
-        if (visited.iter().filter(|x| x.2 != 0).count() == 0) {
-            win_flag = true;
+        if (visited.iter().filter(|x| x.2 != 0).count() == 0) || count >= 200 {
+            end_flag = true;
         }
-        if (win_flag) {
+        if end_flag && count < 200 {
+            if high_score > count || high_score == 0 {
+                high_score = count;
+            }
+
             set_default_camera();
             let textcen = get_text_center("YOU WIN", Option::None, 80, 1.0, 0.0);
             draw_text(
@@ -106,7 +108,7 @@ async fn main() {
                 screen_width() / 2.0 - textcen.x,
                 screen_height() / 2.0 - textcen.y,
                 80.0,
-                DARKBLUE,
+                GOLD,
             );
             let textcen2 = get_text_center(
                 format!("Moves taken: {}", count).as_str(),
@@ -118,54 +120,142 @@ async fn main() {
             draw_text(
                 format!("Moves taken: {}", count).as_str(),
                 screen_width() / 2.0 - textcen2.x,
-                screen_height() / 10.0 * 4.0 - textcen2.y,
+                screen_height() / 10.0 * 6.0 - textcen2.y,
                 80.0,
-                DARKBLUE,
+                GOLD,
             );
+        } else if end_flag && count >= 200 {
+            let textcen = get_text_center(":( YOU LOSE :(", Option::None, 80, 1.0, 0.0);
+            draw_text(
+                ":( YOU LOSE :(",
+                screen_width() / 2.0 - textcen.x,
+                screen_height() / 2.0 - textcen.y,
+                80.0,
+                GOLD,
+            );
+            let textcen2 = get_text_center(
+                format!(
+                    "squares left: {}",
+                    visited.iter().filter(|x| x.2 != 0).count()
+                )
+                .as_str(),
+                Option::None,
+                80,
+                1.0,
+                0.0,
+            );
+            draw_text(
+                format!(
+                    "squares left: {}",
+                    visited.iter().filter(|x| x.2 != 0).count()
+                )
+                .as_str(),
+                screen_width() / 2.0 - textcen2.x,
+                screen_height() / 10.0 * 7.0 - textcen2.y,
+                80.0,
+                GOLD,
+            );
+        } else {
+            set_default_camera();
+            let textcen_moves = get_text_center(
+                format!("Moves taken: {}", count).as_str(),
+                Option::None,
+                40,
+                1.0,
+                0.0,
+            );
+            draw_text(
+                format!("Moves taken: {}", (count)).as_str(),
+                screen_width() / 2.0 - textcen_moves.x,
+                screen_height() / 12.0 - textcen_moves.y,
+                40.0,
+                GOLD,
+            );
+            let textcen_count = get_text_center(
+                format!(
+                    "squares remaining: {}",
+                    visited.iter().filter(|x| x.2 != 0).count()
+                )
+                .as_str(),
+                Option::None,
+                40,
+                1.0,
+                0.0,
+            );
+            draw_text(
+                format!(
+                    "squares remaining: {}",
+                    visited.iter().filter(|x| x.2 != 0).count()
+                )
+                .as_str(),
+                screen_width() / 2.0 - textcen_count.x,
+                screen_height() / 12.0 * 1.8 - textcen_count.y,
+                40.0,
+                GOLD,
+            );
+            if high_score != 0 {
+                let textcen_highscore = get_text_center(
+                    format!("High score: {}", high_score).as_str(),
+                    Option::None,
+                    40,
+                    1.0,
+                    0.0,
+                );
+                draw_text(
+                    format!("High score: {}", high_score).as_str(),
+                    screen_width() / 10.0 * 9.0 - textcen_highscore.x,
+                    screen_height() / 20.0 - textcen_highscore.y,
+                    20.0,
+                    GOLD,
+                );
+            }
         }
+        let textcen_highscore =
+            get_text_center("Click 'space' to restart.", Option::None, 40, 1.0, 0.0);
+        draw_text(
+            "Click 'space' to restart.",
+            screen_width() / 10.0 * 3.0 - textcen_highscore.x,
+            screen_height() / 25.0 - textcen_highscore.y,
+            20.0,
+            GOLD,
+        );
         set_camera(&Camera3D {
             position: vec3(0.0, 4., xdir_offset_smooth - 5.0),
             up: vec3(0., 1., 0.),
             target: vec3(zdir_offset_smooth, 0., xdir_offset_smooth),
             ..Default::default()
         });
-        draw_grid(GRID_SIZE as u32, 1., GRAY, GRAY);
-
-        if is_key_pressed(KeyCode::Q) {
-            roll_speed += 1.0;
-        }
-        if is_key_pressed(KeyCode::A) {
-            roll_speed -= 1.0;
-        }
+        draw_grid(GRID_SIZE as u32, 1., LIGHTGRAY, LIGHTGRAY);
 
         //note: the down and left keys had to be treated differently to the up and right keys.
         //this is due to the way the rotation is handled
         //rotation flag allows continuous key press without issue
         match (
+            !end_flag,
             !rotate_flag,
             is_key_down(KeyCode::Up),
             is_key_down(KeyCode::Down),
             is_key_down(KeyCode::Right),
             is_key_down(KeyCode::Left),
         ) {
-            (true, true, _, _, _) if xdir_offset < 4.0 => {
+            (true, true, true, _, _, _) if xdir_offset < 4.0 => {
                 up_flag = true;
                 rotate_flag = true;
                 x_roll_angle = 0.0;
             }
-            (true, _, true, _, _) if xdir_offset > -3.0 => {
+            (true, true, _, true, _, _) if xdir_offset > -3.0 => {
                 down_flag = true;
                 rotate_flag = true;
                 x_roll_angle = PI / 2.0;
                 xdir_offset -= 1.0;
                 stationary = false;
             }
-            (true, _, _, true, _) if zdir_offset > -4.0 => {
+            (true, true, _, _, true, _) if zdir_offset > -4.0 => {
                 right_flag = true;
                 rotate_flag = true;
                 z_roll_angle = 0.0;
             }
-            (true, _, _, _, true) if zdir_offset < 3.0 => {
+            (true, true, _, _, _, true) if zdir_offset < 3.0 => {
                 left_flag = true;
                 rotate_flag = true;
                 z_roll_angle = PI / 2.0;
@@ -301,36 +391,24 @@ async fn main() {
                     vertices[i2].position.z,
                     1.0,
                 );
-            draw_line_3d(v0.truncate(), v1.truncate(), YELLOW); //render line from vertex set 1 to vertex set 2
-            draw_line_3d(v1.truncate(), v2.truncate(), YELLOW); //render line from vertex set 2 to vertex set 3
-                                                                //draw_line_3d(v0.truncate(), v2.truncate(), cube_colour); //render line from vertex set 2 to vertex set 3
+
+            draw_line_3d(
+                v0.truncate(),
+                v1.truncate(),
+                colour_list2[count as usize / 50],
+            ); //render line from vertex set 1 to vertex set 2
+            draw_line_3d(
+                v1.truncate(),
+                v2.truncate(),
+                colour_list2[count as usize / 50],
+            );
+            // draw_line_3d(
+            //     v0.truncate(),
+            //     v2.truncate(),
+            //     colour_list2[count as usize / 50],
+            // );
+            //render line from vertex set 2 to vertex set 3
         }
-        set_default_camera();
-        let textcen = get_text_center(
-            format!("Moves taken: {}", count).as_str(),
-            Option::None,
-            40,
-            1.0,
-            0.0,
-        );
-        draw_text(
-            format!("Moves taken: {}", count).as_str(),
-            screen_width() / 2.0 - textcen.x,
-            screen_height() / 12.0 - textcen.y,
-            40.0,
-            DARKBLUE,
-        );
-        draw_text(
-            format!(
-                "squares remaining: {}",
-                visited.iter().filter(|x| x.2 != 0).count()
-            )
-            .as_str(),
-            screen_width() / 2.0 - textcen.x,
-            screen_height() / 12.0 * 1.8 - textcen.y,
-            40.0,
-            DARKBLUE,
-        );
         next_frame().await
     }
 }
