@@ -1,4 +1,5 @@
 use std::f32::consts::PI;
+use std::vec;
 
 use macroquad::color;
 use macroquad::prelude::*;
@@ -20,12 +21,21 @@ impl Vertex {
 fn populate_grid(grid_size: i32, colour_list_size: i32) -> Vec<(i32, i32, i32)> {
     let mut visited: Vec<(i32, i32, i32)> = vec![];
     rand::srand(macroquad::miniquad::date::now() as _);
-    for i in -(grid_size / 2)..(grid_size / 2) {
-        for j in -(grid_size / 2) + 1..(grid_size / 2) + 1 {
-            visited.push((i, j, rand::gen_range(0, colour_list_size + 1)));
+    if grid_size % 2 == 0 {
+        for i in -(grid_size / 2)..(grid_size / 2) {
+            for j in -(grid_size / 2) + 1..(grid_size / 2) + 1 {
+                visited.push((i, j, rand::gen_range(0, colour_list_size + 1)));
+            }
         }
+        return visited;
+    } else {
+        for i in -(grid_size / 2)..(grid_size / 2) + 1 {
+            for j in -(grid_size / 2)..(grid_size / 2) + 1 {
+                visited.push((i, j, rand::gen_range(0, colour_list_size + 1)));
+            }
+        }
+        return visited;
     }
-    return visited;
 }
 
 #[macroquad::main("Rolling Cube")]
@@ -51,9 +61,10 @@ async fn main() {
         Vertex::new(1.0, 1.0, -1.0),
         Vertex::new(0.0, 1.0, -1.0),
     ];
-    const GRID_SIZE: i32 = 8; //square grid side length
+
+    const GRID_SIZE: i32 = 7; //square grid side length
     let mut count = 0; //movement counter
-    let roll_speed: f32 = 45.0; //roll speed
+    let roll_speed: f32 = 25.0; //roll speed
     let mut x_roll_angle: f32 = 0.0; //the way movement is simulated in x direction (3d space)
     let mut z_roll_angle: f32 = 0.0; //the way movement is simulated in z direction (3d space)
     let mut xdir_offset: f32 = 0.0; //treated as y-coord value in relation to flat grid (2d space)
@@ -77,11 +88,11 @@ async fn main() {
 
     let mut visited: Vec<(i32, i32, i32)> = populate_grid(GRID_SIZE, colour_list.len() as i32);
     let mut end_flag: bool = false;
-
+    let end_value: i32 = (GRID_SIZE + GRID_SIZE % 2) * (GRID_SIZE + GRID_SIZE % 2) * 2;
     //main program loop begins
     loop {
         clear_background(DARKGRAY);
-
+        //Reset button
         if is_key_down(KeyCode::Space) {
             end_flag = false;
             visited.clear();
@@ -93,10 +104,10 @@ async fn main() {
             count = 0;
         }
 
-        if (visited.iter().filter(|x| x.2 != 0).count() == 0) || count >= 200 {
+        if (visited.iter().filter(|x| x.2 != 0).count() == 0) || count >= end_value {
             end_flag = true;
         }
-        if end_flag && count < 200 {
+        if end_flag && count < end_value {
             if high_score > count || high_score == 0 {
                 high_score = count;
             }
@@ -124,16 +135,17 @@ async fn main() {
                 80.0,
                 GOLD,
             );
-        } else if end_flag && count >= 200 {
-            let textcen = get_text_center(":( YOU LOSE :(", Option::None, 80, 1.0, 0.0);
+        } else if end_flag && count >= end_value {
+            set_default_camera();
+            let textcen_lose = get_text_center(":( YOU LOSE :(", Option::None, 80, 1.0, 0.0);
             draw_text(
                 ":( YOU LOSE :(",
-                screen_width() / 2.0 - textcen.x,
-                screen_height() / 2.0 - textcen.y,
+                screen_width() / 2.0 - textcen_lose.x,
+                screen_height() / 2.0 - textcen_lose.y,
                 80.0,
                 GOLD,
             );
-            let textcen2 = get_text_center(
+            let textcen_squares = get_text_center(
                 format!(
                     "squares left: {}",
                     visited.iter().filter(|x| x.2 != 0).count()
@@ -150,8 +162,8 @@ async fn main() {
                     visited.iter().filter(|x| x.2 != 0).count()
                 )
                 .as_str(),
-                screen_width() / 2.0 - textcen2.x,
-                screen_height() / 10.0 * 7.0 - textcen2.y,
+                screen_width() / 2.0 - textcen_squares.x,
+                screen_height() / 10.0 * 7.0 - textcen_squares.y,
                 80.0,
                 GOLD,
             );
@@ -169,7 +181,7 @@ async fn main() {
                 screen_width() / 2.0 - textcen_moves.x,
                 screen_height() / 12.0 - textcen_moves.y,
                 40.0,
-                GOLD,
+                colour_list2[count as usize / (end_value as usize / 4)],
             );
             let textcen_count = get_text_center(
                 format!(
@@ -215,17 +227,31 @@ async fn main() {
         draw_text(
             "Click 'space' to restart.",
             screen_width() / 10.0 * 3.0 - textcen_highscore.x,
+            screen_height() / 25.0 * 2.0 - textcen_highscore.y,
+            20.0,
+            GOLD,
+        );
+        draw_text(
+            "Use arrow keys to move.",
+            screen_width() / 10.0 * 3.0 - textcen_highscore.x,
             screen_height() / 25.0 - textcen_highscore.y,
             20.0,
             GOLD,
         );
         set_camera(&Camera3D {
-            position: vec3(0.0, 4., xdir_offset_smooth - 5.0),
+            position: vec3(0.5, 4., xdir_offset_smooth - 5.0),
             up: vec3(0., 1., 0.),
-            target: vec3(zdir_offset_smooth, 0., xdir_offset_smooth),
+            target: vec3(zdir_offset_smooth + 0.5, 0., xdir_offset_smooth),
             ..Default::default()
         });
-        draw_grid(GRID_SIZE as u32, 1., LIGHTGRAY, LIGHTGRAY);
+        // draw_grid_ex(
+        //     GRID_SIZE as u32,
+        //     1.,
+        //     LIGHTGRAY,
+        //     LIGHTGRAY,
+        //     vec3(0.0, 0.0, 0.0),
+        //     identity(quat(1.0, 0.0, 0.0, 0.0)),
+        // );
 
         //note: the down and left keys had to be treated differently to the up and right keys.
         //this is due to the way the rotation is handled
@@ -238,24 +264,28 @@ async fn main() {
             is_key_down(KeyCode::Right),
             is_key_down(KeyCode::Left),
         ) {
-            (true, true, true, _, _, _) if xdir_offset < 4.0 => {
+            (true, true, true, _, _, _) if xdir_offset < (GRID_SIZE / 2) as f32 => {
                 up_flag = true;
                 rotate_flag = true;
                 x_roll_angle = 0.0;
             }
-            (true, true, _, true, _, _) if xdir_offset > -3.0 => {
+            (true, true, _, true, _, _)
+                if xdir_offset > (-(GRID_SIZE / 2) - (GRID_SIZE % 2 - 1)) as f32 =>
+            {
                 down_flag = true;
                 rotate_flag = true;
                 x_roll_angle = PI / 2.0;
                 xdir_offset -= 1.0;
                 stationary = false;
             }
-            (true, true, _, _, true, _) if zdir_offset > -4.0 => {
+            (true, true, _, _, true, _) if zdir_offset > -(GRID_SIZE / 2) as f32 => {
                 right_flag = true;
                 rotate_flag = true;
                 z_roll_angle = 0.0;
             }
-            (true, true, _, _, _, true) if zdir_offset < 3.0 => {
+            (true, true, _, _, _, true)
+                if zdir_offset < ((GRID_SIZE / 2) + (GRID_SIZE % 2 - 1)) as f32 =>
+            {
                 left_flag = true;
                 rotate_flag = true;
                 z_roll_angle = PI / 2.0;
@@ -336,7 +366,7 @@ async fn main() {
                     visited[i].2 = 0; //reset visit count
                     stationary = false;
                 }
-
+                //debug nonsense. delete later \\\///
                 println!(
                     "x,y({},{})--speed {}-- {}----- moves: {}--------{}",
                     visited[i].0,
@@ -346,16 +376,26 @@ async fn main() {
                     count,
                     visited.len()
                 );
+                //debug nonsense end. delete later ^^^
             }
             //render a small plane ("tile") with its colour based on visit count
+            let x = visited[i].0 as f32;
+            let z = visited[i].1 as f32;
+
             if visited[i].2 >= 1 {
                 draw_plane(
-                    vec3(visited[i].0 as f32 + 0.5, 0.0, visited[i].1 as f32 - 0.5),
+                    vec3(x + 0.5, 0.0, z - 0.5),
                     vec2(0.5, 0.5),
                     None,
                     colour_list[visited[i].2 as usize - 1],
                 );
+            } else {
+                draw_plane(vec3(x + 0.5, 0.0, z - 0.5), vec2(0.5, 0.5), None, BLANK);
             }
+            draw_line_3d(vec3(x, 0.0, z), vec3(x + 1.0, 0.0, z), BLACK);
+            draw_line_3d(vec3(x, 0.0, z), vec3(x, 0.0, z - 1.0), BLACK);
+            draw_line_3d(vec3(x + 1.0, 0.0, z), vec3(x + 1.0, 0.0, z - 1.0), BLACK);
+            draw_line_3d(vec3(x, 0.0, z - 1.0), vec3(x + 1.0, 0.0, z - 1.0), BLACK);
         }
         // rotates the model depending on up/down/right/left flag
         let mut model = Mat4::from_translation(vec3(zdir_offset, 0.0, xdir_offset));
@@ -395,19 +435,13 @@ async fn main() {
             draw_line_3d(
                 v0.truncate(),
                 v1.truncate(),
-                colour_list2[count as usize / 50],
+                colour_list2[count as usize / (end_value as usize / 4)],
             ); //render line from vertex set 1 to vertex set 2
             draw_line_3d(
                 v1.truncate(),
                 v2.truncate(),
-                colour_list2[count as usize / 50],
+                colour_list2[count as usize / (end_value as usize / 4)],
             );
-            // draw_line_3d(
-            //     v0.truncate(),
-            //     v2.truncate(),
-            //     colour_list2[count as usize / 50],
-            // );
-            //render line from vertex set 2 to vertex set 3
         }
         next_frame().await
     }
