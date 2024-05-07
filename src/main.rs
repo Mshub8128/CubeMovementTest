@@ -9,7 +9,7 @@ struct Vertex {
     position: Vec3,
 }
 
-//new keyword is considered naming convention for general constructor
+//new keyword is considered naming convention for general constructor in Rust
 impl Vertex {
     fn new(x: f32, y: f32, z: f32) -> Self {
         Self {
@@ -17,39 +17,31 @@ impl Vertex {
         }
     }
 }
-
-fn populate_grid(grid_size: i32, colour_list_size: i32) -> Vec<(i32, i32, i32)> {
+//function to randomly populate grid
+fn populate_grid(grid_size: i32, tile_colours_size: i32) -> Vec<(i32, i32, i32)> {
     let mut visited: Vec<(i32, i32, i32)> = vec![];
     rand::srand(macroquad::miniquad::date::now() as _);
     if grid_size % 2 == 0 {
         for i in -(grid_size / 2)..(grid_size / 2) {
             for j in -(grid_size / 2) + 1..(grid_size / 2) + 1 {
-                visited.push((i, j, rand::gen_range(0, colour_list_size + 1)));
+                visited.push((i, j, rand::gen_range(0, tile_colours_size + 1)));
             }
         }
-        return visited;
+        visited
     } else {
         for i in -(grid_size / 2)..(grid_size / 2) + 1 {
             for j in -(grid_size / 2)..(grid_size / 2) + 1 {
-                visited.push((i, j, rand::gen_range(0, colour_list_size + 1)));
+                visited.push((i, j, rand::gen_range(0, tile_colours_size + 1)));
             }
         }
-        return visited;
+        visited
     }
 }
 
 #[macroquad::main("Rolling Cube")]
 async fn main() {
-    let indices = vec![
-        0, 1, 2, 2, 3, 0, // Front face
-        4, 5, 6, 6, 7, 4, // Back face
-        0, 4, 7, 7, 3, 0, // Left face
-        1, 5, 6, 6, 2, 1, // Right face
-        3, 2, 6, 6, 7, 3, // Top face
-        0, 1, 5, 5, 4, 0, // Bottom face
-    ];
-
-    let vertices = vec![
+    //Coordinates of the vertices of a cube in 3D space
+    let vertices = [
         // Front face
         Vertex::new(0.0, 0.0, 0.0),
         Vertex::new(1.0, 0.0, 0.0),
@@ -61,10 +53,19 @@ async fn main() {
         Vertex::new(1.0, 1.0, -1.0),
         Vertex::new(0.0, 1.0, -1.0),
     ];
+    //the vertices required to render each face of the cube
+    let indices = [
+        0, 1, 2, 2, 3, 0, // Front face
+        4, 5, 6, 6, 7, 4, // Back face
+        0, 4, 7, 7, 3, 0, // Left face
+        1, 5, 6, 6, 2, 1, // Right face
+        3, 2, 6, 6, 7, 3, // Top face
+        0, 1, 5, 5, 4, 0, // Bottom face
+    ];
 
     const GRID_SIZE: i32 = 7; //square grid side length
     let mut count = 0; //movement counter
-    let roll_speed: f32 = 25.0; //roll speed
+    let roll_speed: f32 = 45.0; //roll speed
     let mut x_roll_angle: f32 = 0.0; //the way movement is simulated in x direction (3d space)
     let mut z_roll_angle: f32 = 0.0; //the way movement is simulated in z direction (3d space)
     let mut xdir_offset: f32 = 0.0; //treated as y-coord value in relation to flat grid (2d space)
@@ -77,18 +78,20 @@ async fn main() {
     let mut left_flag: bool = false; //left arrow key pressed
     let mut rotate_flag: bool = false; //cube in process of rotating
     let mut stationary: bool = false; //cube is stationary. (similar, but not the same to rotate_flag: evaluated and used at different stage of rotation)
-    let mut high_score: i32 = 0;
-    let colour_list: Vec<color::Color> = vec![macroquad::color::Color::from_vec(vec4(
+    let mut end_flag: bool = false; //end state
+    let end_value: i32 = (GRID_SIZE + GRID_SIZE % 2) * (GRID_SIZE + GRID_SIZE % 2) * 2; //number of allowable moves
+    let mut high_score: i32 = 0; //... high score
+                                 //vector of tile colours. in current implementation of code, only one colour is required.
+    let tile_colours: Vec<color::Color> = vec![macroquad::color::Color::from_vec(vec4(
         MAROON.r,
         MAROON.g,
         MAROON.b,
         MAROON.a / 3.0,
     ))];
-    let colour_list2: Vec<color::Color> = vec![GREEN, YELLOW, ORANGE, RED, BLANK];
-
-    let mut visited: Vec<(i32, i32, i32)> = populate_grid(GRID_SIZE, colour_list.len() as i32);
-    let mut end_flag: bool = false;
-    let end_value: i32 = (GRID_SIZE + GRID_SIZE % 2) * (GRID_SIZE + GRID_SIZE % 2) * 2;
+    //vector of cube colours. gives indication of how many moves left.
+    let cube_colours: Vec<color::Color> = vec![GREEN, YELLOW, ORANGE, RED, BLANK];
+    //vector of squares in grid and number of times visited.
+    let mut visited: Vec<(i32, i32, i32)> = populate_grid(GRID_SIZE, tile_colours.len() as i32);
     //main program loop begins
     loop {
         clear_background(DARKGRAY);
@@ -96,14 +99,14 @@ async fn main() {
         if is_key_down(KeyCode::Space) {
             end_flag = false;
             visited.clear();
-            visited = populate_grid(GRID_SIZE, colour_list.len() as i32);
+            visited = populate_grid(GRID_SIZE, tile_colours.len() as i32);
             xdir_offset = 0.0;
             zdir_offset = 0.0;
             xdir_offset_smooth = 0.0;
             zdir_offset_smooth = 0.0;
             count = 0;
         }
-
+        //check end conditions
         if (visited.iter().filter(|x| x.2 != 0).count() == 0) || count >= end_value {
             end_flag = true;
         }
@@ -181,7 +184,7 @@ async fn main() {
                 screen_width() / 2.0 - textcen_moves.x,
                 screen_height() / 12.0 - textcen_moves.y,
                 40.0,
-                colour_list2[count as usize / (end_value as usize / 4)],
+                cube_colours[count as usize / (end_value as usize / 4)],
             );
             let textcen_count = get_text_center(
                 format!(
@@ -244,14 +247,6 @@ async fn main() {
             target: vec3(zdir_offset_smooth + 0.5, 0., xdir_offset_smooth),
             ..Default::default()
         });
-        // draw_grid_ex(
-        //     GRID_SIZE as u32,
-        //     1.,
-        //     LIGHTGRAY,
-        //     LIGHTGRAY,
-        //     vec3(0.0, 0.0, 0.0),
-        //     identity(quat(1.0, 0.0, 0.0, 0.0)),
-        // );
 
         //note: the down and left keys had to be treated differently to the up and right keys.
         //this is due to the way the rotation is handled
@@ -355,39 +350,29 @@ async fn main() {
         for i in 0..(visited.len()) {
             if visited[i].0 == zdir_offset as i32
                 && visited[i].1 == xdir_offset as i32
-                && stationary == true
+                && stationary
             {
-                if visited[i].2 >= 0 && visited[i].2 < (colour_list.len()) as i32 {
+                if visited[i].2 >= 0 && visited[i].2 < (tile_colours.len()) as i32 {
                     //if visit count is greater than or equal to 0 but less than the length of the colour list
                     visited[i].2 += 1; //increment visit count
                     stationary = false;
-                } else if visited[i].2 == (colour_list.len()) as i32 {
+                } else if visited[i].2 == (tile_colours.len()) as i32 {
                     //otherwise
                     visited[i].2 = 0; //reset visit count
                     stationary = false;
                 }
-                //debug nonsense. delete later \\\///
-                println!(
-                    "x,y({},{})--speed {}-- {}----- moves: {}--------{}",
-                    visited[i].0,
-                    visited[i].1,
-                    roll_speed,
-                    visited[i].2,
-                    count,
-                    visited.len()
-                );
-                //debug nonsense end. delete later ^^^
             }
             //render a small plane ("tile") with its colour based on visit count
             let x = visited[i].0 as f32;
             let z = visited[i].1 as f32;
 
+            //draw tiles
             if visited[i].2 >= 1 {
                 draw_plane(
                     vec3(x + 0.5, 0.0, z - 0.5),
                     vec2(0.5, 0.5),
                     None,
-                    colour_list[visited[i].2 as usize - 1],
+                    tile_colours[visited[i].2 as usize - 1],
                 );
             } else {
                 draw_plane(vec3(x + 0.5, 0.0, z - 0.5), vec2(0.5, 0.5), None, BLANK);
@@ -400,9 +385,9 @@ async fn main() {
         // rotates the model depending on up/down/right/left flag
         let mut model = Mat4::from_translation(vec3(zdir_offset, 0.0, xdir_offset));
         if up_flag || down_flag {
-            model = model * Mat4::from_rotation_x(x_roll_angle);
+            model *= Mat4::from_rotation_x(x_roll_angle);
         } else if right_flag || left_flag {
-            model = model * Mat4::from_rotation_z(z_roll_angle);
+            model *= Mat4::from_rotation_z(z_roll_angle);
         }
         for i in (0..indices.len()).step_by(3) {
             //interates through indices list
@@ -435,12 +420,12 @@ async fn main() {
             draw_line_3d(
                 v0.truncate(),
                 v1.truncate(),
-                colour_list2[count as usize / (end_value as usize / 4)],
+                cube_colours[count as usize / (end_value as usize / 4)],
             ); //render line from vertex set 1 to vertex set 2
             draw_line_3d(
                 v1.truncate(),
                 v2.truncate(),
-                colour_list2[count as usize / (end_value as usize / 4)],
+                cube_colours[count as usize / (end_value as usize / 4)],
             );
         }
         next_frame().await
