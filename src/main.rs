@@ -3,41 +3,9 @@ use std::vec;
 
 use macroquad::color;
 use macroquad::prelude::*;
+//use macroquad::text;
 
-#[derive(Debug, Clone, Copy)]
-struct Vertex {
-    position: Vec3,
-}
-
-//new keyword is considered naming convention for general constructor in Rust
-impl Vertex {
-    fn new(x: f32, y: f32, z: f32) -> Self {
-        Self {
-            position: vec3(x, y, z),
-        }
-    }
-}
-//function to randomly populate grid
-fn populate_grid(grid_size: i32, tile_colours_size: i32) -> Vec<(i32, i32, i32)> {
-    let mut visited: Vec<(i32, i32, i32)> = vec![];
-    rand::srand(macroquad::miniquad::date::now() as _);
-    if grid_size % 2 == 0 {
-        for i in -(grid_size / 2)..(grid_size / 2) {
-            for j in -(grid_size / 2) + 1..(grid_size / 2) + 1 {
-                visited.push((i, j, rand::gen_range(0, tile_colours_size + 1)));
-            }
-        }
-        visited
-    } else {
-        for i in -(grid_size / 2)..(grid_size / 2) + 1 {
-            for j in -(grid_size / 2)..(grid_size / 2) + 1 {
-                visited.push((i, j, rand::gen_range(0, tile_colours_size + 1)));
-            }
-        }
-        visited
-    }
-}
-
+//#[derive(Debug, Clone, Copy)]
 #[macroquad::main("Rolling Cube")]
 async fn main() {
     //Coordinates of the vertices of a cube in 3D space
@@ -95,6 +63,8 @@ async fn main() {
     //main program loop begins
     loop {
         clear_background(DARKGRAY);
+        let cube_colour_current: Color = cube_colours[count as usize / (end_value as usize / 4)];
+
         //Reset button
         if is_key_down(KeyCode::Space) {
             end_flag = false;
@@ -116,130 +86,101 @@ async fn main() {
             }
 
             set_default_camera();
-            let textcen = get_text_center("YOU WIN", Option::None, 80, 1.0, 0.0);
-            draw_text(
-                "YOU WIN!",
-                screen_width() / 2.0 - textcen.x,
-                screen_height() / 2.0 - textcen.y,
-                80.0,
-                GOLD,
-            );
-            let textcen2 = get_text_center(
-                format!("Moves taken: {}", count).as_str(),
-                Option::None,
-                80,
-                1.0,
-                0.0,
-            );
-            draw_text(
-                format!("Moves taken: {}", count).as_str(),
-                screen_width() / 2.0 - textcen2.x,
-                screen_height() / 10.0 * 6.0 - textcen2.y,
-                80.0,
-                GOLD,
-            );
+            text_helper(false, "YOU WIN!", None, 80.0, 0.5, 0.5, GOLD);
+            text_helper(true, "Moves taken: ", Some(count), 80.0, 0.5, 0.6, GOLD);
         } else if end_flag && count >= end_value {
             set_default_camera();
-            let textcen_lose = get_text_center(":( YOU LOSE :(", Option::None, 80, 1.0, 0.0);
-            draw_text(
-                ":( YOU LOSE :(",
-                screen_width() / 2.0 - textcen_lose.x,
-                screen_height() / 2.0 - textcen_lose.y,
+            text_helper(false, ":( YOU LOSE :(", None, 80.0, 0.5, 0.5, GOLD);
+            text_helper(
+                true,
+                "Squares left:",
+                Some(
+                    visited
+                        .iter()
+                        .filter(|x| x.2 != 0)
+                        .count()
+                        .try_into()
+                        .unwrap(),
+                ),
                 80.0,
-                GOLD,
-            );
-            let textcen_squares = get_text_center(
-                format!(
-                    "squares left: {}",
-                    visited.iter().filter(|x| x.2 != 0).count()
-                )
-                .as_str(),
-                Option::None,
-                80,
-                1.0,
-                0.0,
-            );
-            draw_text(
-                format!(
-                    "squares left: {}",
-                    visited.iter().filter(|x| x.2 != 0).count()
-                )
-                .as_str(),
-                screen_width() / 2.0 - textcen_squares.x,
-                screen_height() / 10.0 * 7.0 - textcen_squares.y,
-                80.0,
+                0.5,
+                7.0 / 10.0,
                 GOLD,
             );
         } else {
             set_default_camera();
-            let textcen_moves = get_text_center(
-                format!("Moves taken: {}", count).as_str(),
-                Option::None,
-                40,
-                1.0,
-                0.0,
-            );
-            draw_text(
-                format!("Moves taken: {}", (count)).as_str(),
-                screen_width() / 2.0 - textcen_moves.x,
-                screen_height() / 12.0 - textcen_moves.y,
+            text_helper(
+                true,
+                "Moves taken:",
+                Some(count),
                 40.0,
-                cube_colours[count as usize / (end_value as usize / 4)],
+                0.5,
+                1.0 / 12.0,
+                cube_colour_current,
             );
-            let textcen_count = get_text_center(
-                format!(
-                    "squares remaining: {}",
-                    visited.iter().filter(|x| x.2 != 0).count()
-                )
-                .as_str(),
-                Option::None,
-                40,
-                1.0,
-                0.0,
-            );
-            draw_text(
-                format!(
-                    "squares remaining: {}",
-                    visited.iter().filter(|x| x.2 != 0).count()
-                )
-                .as_str(),
-                screen_width() / 2.0 - textcen_count.x,
-                screen_height() / 12.0 * 1.8 - textcen_count.y,
+            text_helper(
+                true,
+                "Squares remaining:",
+                Some(
+                    visited
+                        .iter()
+                        .filter(|x| x.2 != 0)
+                        .count()
+                        .try_into()
+                        .unwrap(),
+                ),
                 40.0,
+                0.5,
+                1.8 / 12.0,
                 GOLD,
             );
             if high_score != 0 {
-                let textcen_highscore = get_text_center(
-                    format!("High score: {}", high_score).as_str(),
-                    Option::None,
-                    40,
-                    1.0,
-                    0.0,
-                );
-                draw_text(
-                    format!("High score: {}", high_score).as_str(),
-                    screen_width() / 10.0 * 9.0 - textcen_highscore.x,
-                    screen_height() / 20.0 - textcen_highscore.y,
+                text_helper(
+                    true,
+                    "High score:",
+                    Some(high_score),
                     20.0,
+                    5.0 / 10.0,
+                    0.8 / 25.0,
                     GOLD,
                 );
             }
         }
-        let textcen_highscore =
-            get_text_center("Click 'space' to restart.", Option::None, 40, 1.0, 0.0);
-        draw_text(
-            "Click 'space' to restart.",
-            screen_width() / 10.0 * 3.0 - textcen_highscore.x,
-            screen_height() / 25.0 * 2.0 - textcen_highscore.y,
+        text_helper(
+            true,
+            "Grid size:",
+            Some(GRID_SIZE),
             20.0,
-            GOLD,
+            8.5 / 10.0,
+            1. / 25.,
+            GREEN,
         );
-        draw_text(
-            "Use arrow keys to move.",
-            screen_width() / 10.0 * 3.0 - textcen_highscore.x,
-            screen_height() / 25.0 - textcen_highscore.y,
+        text_helper(
+            true,
+            "Max moves:",
+            Some(end_value),
             20.0,
-            GOLD,
+            8.5 / 10.0,
+            2. / 25.,
+            GREEN,
+        );
+        text_helper(
+            false,
+            "Click 'space' to restart.",
+            None,
+            20.0,
+            1.5 / 10.0,
+            2.0 / 25.0,
+            GREEN,
+        );
+        text_helper(
+            false,
+            "Use arrow keys to move.",
+            None,
+            20.0,
+            1.5 / 10.0,
+            1.0 / 25.0,
+            GREEN,
         );
         set_camera(&Camera3D {
             position: vec3(0.5, 4., xdir_offset_smooth - 5.0),
@@ -417,18 +358,68 @@ async fn main() {
                     1.0,
                 );
 
-            draw_line_3d(
-                v0.truncate(),
-                v1.truncate(),
-                cube_colours[count as usize / (end_value as usize / 4)],
-            ); //render line from vertex set 1 to vertex set 2
-            draw_line_3d(
-                v1.truncate(),
-                v2.truncate(),
-                cube_colours[count as usize / (end_value as usize / 4)],
-            );
+            draw_line_3d(v0.truncate(), v1.truncate(), cube_colour_current); //render line from vertex set 1 to vertex set 2
+            draw_line_3d(v1.truncate(), v2.truncate(), cube_colour_current);
         }
         next_frame().await
     }
 }
-//"ONLY THE DEAD KNOW PEACE FROM THIS SUFFERING",
+
+struct Vertex {
+    position: Vec3,
+}
+
+//new keyword is considered naming convention for general constructor in Rust
+impl Vertex {
+    fn new(x: f32, y: f32, z: f32) -> Self {
+        Self {
+            position: vec3(x, y, z),
+        }
+    }
+}
+//function to randomly populate grid
+fn populate_grid(grid_size: i32, tile_colours_size: i32) -> Vec<(i32, i32, i32)> {
+    let mut visited: Vec<(i32, i32, i32)> = vec![];
+    rand::srand(macroquad::miniquad::date::now() as _);
+    if grid_size % 2 == 0 {
+        for i in -(grid_size / 2)..(grid_size / 2) {
+            for j in -(grid_size / 2) + 1..(grid_size / 2) + 1 {
+                visited.push((i, j, rand::gen_range(0, tile_colours_size + 1)));
+            }
+        }
+        visited
+    } else {
+        for i in -(grid_size / 2)..(grid_size / 2) + 1 {
+            for j in -(grid_size / 2)..(grid_size / 2) + 1 {
+                visited.push((i, j, rand::gen_range(0, tile_colours_size + 1)));
+            }
+        }
+        visited
+    }
+}
+
+//function to more easily call get_text_center and draw_text functions
+fn text_helper<T: AsRef<str>>(
+    incl_var: bool,
+    text: T,
+    text_var: Option<i32>,
+    size: f32,
+    pos_x: f32,
+    pos_y: f32,
+    text_colour: Color,
+) {
+    let full_text = if incl_var {
+        format!("{} {}", text.as_ref(), text_var.unwrap_or(0))
+    } else {
+        text.as_ref().to_string()
+    };
+
+    let pos = get_text_center(&full_text, None, size as u16, 1.0, 0.0);
+    draw_text(
+        &full_text,
+        screen_width() * pos_x - pos.x,
+        screen_height() * pos_y - pos.y,
+        size,
+        text_colour,
+    );
+}
